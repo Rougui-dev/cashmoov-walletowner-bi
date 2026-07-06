@@ -19,13 +19,17 @@ The resulting Power BI dashboard serves as a critical operational and decision-m
 ##  Dashboard Insights & Preview
 *Note: To maintain corporate confidentiality, all underlying data has been strictly anonymized or masked.*
 
-###  Executive Overview
-*This page provides a high-level summary of total transaction volumes, active wallet owners, and revenue trends.*
-![Executive View](assets/screenshot_executive.png)
+###  Home Page (Accueil)
+*This landing page offers a high-level navigation interface and an executive overview of the global financial health.*
+![Home View](assets/screenshot_home.png)
 
-###  Financial Reconciliation Page
-*This view focuses on ledger balancing, monitoring financial flows, and detecting operational anomalies.*
-![Reconciliation View](assets/screenshot_reconciliation.png)
+###  Balance Analysis (Solde)
+*This view focuses on ledger balancing, monitoring real-time balances, tracking financial flows, and detecting operational anomalies.*
+![Balance View](assets/screenshot_balance.png)
+
+###  Revenue Performance (Revenu)
+*Dedicated to income tracking, analyzing revenue streams, and evaluating top-performing wallet owner segments.*
+![Revenue View](assets/screenshot_revenue.png)
 
 ##  Project Impact
 1.  **Automation:** Replaced manual Excel-based tracking with an automated Power Query and Power BI workflow, reducing reporting time significantly.
