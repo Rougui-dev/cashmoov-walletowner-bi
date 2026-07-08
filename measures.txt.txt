@@ -1,0 +1,246 @@
+Autres_Agents_Negatif = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature] = "Solde",
+    'Wallet'[Montant] < 0,
+    'Wallet'[Groupe_Reporting] = "AUTRES AGENTS", 'Wallet'[PROFILE] IN {"Agent", "Branch", "Institute"}
+)
+
+Autres_Agents_Positif = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature] = "Solde",
+    'Wallet'[Montant] > 0,
+    'Wallet'[Groupe_Reporting] = "AUTRES AGENTS", 'Wallet'[PROFILE] IN {"Agent", "Branch", "Institute"}
+)
+
+
+CASHMOOV_Commissions = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature] = "Comm",
+    'Wallet'[Groupe_Reporting] = "CASHMOOV",
+    'Wallet'[PROFILE] IN {"Agent", "Branch", "Institute"}
+)
+
+
+CASHMOOV_Negatif = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature] = "Solde",
+    'Wallet'[Montant] < 0,
+    'Wallet'[Groupe_Reporting] = "CASHMOOV",
+    'Wallet'[PROFILE] IN {"Agent", "Branch", "Institute"}
+)
+
+
+CASHMOOV_Positif = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature] = "Solde",
+    'Wallet'[Montant] > 0,
+    'Wallet'[Groupe_Reporting] = "CASHMOOV",
+    'Wallet'[PROFILE] IN {"Agent", "Branch", "Institute"}
+)
+
+
+Comm_Autres_Agents = CALCULATE(SUM('Wallet'[Montant]),
+ 'Wallet'[Nature] = "Comm") - [CASHMOOV_Commissions]
+
+
+Compte_Interne_Neg = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature]= "Solde",
+    'Wallet'[Montant] < 0,
+    LEFT('Wallet'[NAME], 4) IN {"COO ", "COB ", "COC "}
+)
+
+Compte_Interne_Pos = 
+CALCULATE(
+    [Total_Montant], 
+    'Wallet'[Nature]= "Solde",
+    'Wallet'[Montant] > 0,
+    LEFT('Wallet'[NAME], 4) IN {"COO ", "COB ", "COC "}
+)
+
+
+Forex SP(Intech, Paysen) = 
+
+-- 1. Calcul global (valable pour toutes les devises présentes dans Wallet)
+
+VAR SP_Intech_PAYSEN =
+
+    CALCULATE(
+        SUM('Wallet'[Montant]),
+
+        'Wallet'[NAME] IN {"Intech", "PAYSEN"}
+    )
+
+VAR COMPTE_AGREGATEUR =
+
+        CALCULATE(
+
+         SUM('Wallet'[Montant]),
+
+        'Wallet'[NAME] = "COMPTE PAYSEN AGREGATEUR"
+        )
+      
+-- 2. Logique spécifique pour le Solde Résiduel
+
+-- On regarde quelle devise est sélectionnée dans le rapport
+
+VAR Devise_Selectionnee = SELECTEDVALUE('Wallet'[Devise])
+
+VAR Solde_Residuel_Dynamique =
+
+    SWITCH( TRUE(),
+
+        -- Si on est sur du XOF, on prend le bloc Afrique de l'Ouest
+
+        Devise_Selectionnee = "XOF_Solde",
+
+            CALCULATE(
+
+                SUM('Solde Résiduel'[Solde]),
+
+                'Solde Résiduel'[Paysen] IN {"Mali", "Senegal Intech", "Burkina", "CI"}
+
+            ),
+
+        -- Si on est sur du GNF, on prend uniquement la Guinée
+
+        Devise_Selectionnee = "GNF_Solde",
+            CALCULATE(
+
+                SUM('Solde Résiduel'[Solde]),
+
+                'Solde Résiduel'[Paysen] = "Guinee"
+            ),
+
+        -- Pour les autres devises (USD, EUR...), on peut laisser à 0 ou mettre un autre calcul
+
+        0
+    )
+
+RETURN
+
+(SP_Intech_PAYSEN + Solde_Residuel_Dynamique) - COMPTE_AGREGATEUR
+
+
+
+Forex_Margin_Cashmoov = 
+SUMX(
+    VALUES('Wallet'[Devise]), -- On force Power BI à calculer ligne par ligne (Devise par Devise)
+
+    -- 1. On identifie la devise de la ligne en cours
+    VAR Devise_Wallet = 'Wallet'[Devise]
+
+    -- 2. On traduit pour la table Pending
+    VAR Devise_Traduite = 
+        SWITCH( Devise_Wallet,
+            "GNF_Solde", "Guinean franc",
+            "XOF_Solde", "West African CFA franc",
+            "USD_Solde", "United State Dollar",
+            "EUR_Solde", "Euro",
+            Devise_Wallet
+        )
+
+    -- 3. On calcule le Pending (le filtre de date du calendrier passe tout seul maintenant !)
+    VAR Total_Pending = 
+        CALCULATE(
+            SUM('Pending'[Sender Amount]),
+            'Pending'[Source Currency] = Devise_Traduite
+        )
+
+    -- 4. On calcule le SP Cashmoov
+    VAR SP_Cashmoov = 
+        CALCULATE(
+            SUM('Wallet'[Montant]), 
+            'Wallet'[NAME] = "CASHMOOV"
+        )
+
+    -- 5. On fait la soustraction pour cette devise précise
+    RETURN 
+     COALESCE(SP_Cashmoov, 0) - COALESCE(Total_Pending, 0)
+)
+
+
+Groupe_Reporting = 
+SWITCH( TRUE(),
+    LEFT('Wallet'[NAME], 4) = "COO ", "COO ",
+    LEFT('Wallet'[NAME], 4) = "COB ", "COB ",
+    LEFT('Wallet'[NAME], 4) = "COC ", "COC ",
+    CONTAINSSTRING('Wallet'[NAME], "CASHMOOV"), "CASHMOOV",
+    'Wallet'[PROFILE] IN {"Agent", "Branch", "Institute"}, "AUTRES AGENTS",
+    "RESTE"
+)
+
+
+Revenu_Cashmoov_Converti = 
+
+VAR _TypeChoisi = SELECTEDVALUE('Table_Change'[Type], "Taux Marché")
+VAR _DateAujourdhui = MAX('Table_Calendrier'[Date])
+
+VAR _DevisesTable = VALUES('Wallet'[Devise])
+
+VAR _ResultatTotal =
+    SUMX(
+        _DevisesTable,
+        VAR _DeviseActuelle = [Devise]
+
+        -- 🔥 Dernier montant disponible AVANT ou à la date
+        VAR _MntAujourdhui =
+            CALCULATE(
+                SUM('Wallet'[Montant]),
+                'Wallet'[PROFILE] = "Commission Receivable",
+                LASTNONBLANK(
+                    'Table_Calendrier'[Date],
+                    CALCULATE(SUM('Wallet'[Montant]))
+                )
+            )
+
+        -- 🔥 Dernier montant disponible AVANT la date actuelle
+        VAR _MntHier =
+            CALCULATE(
+                SUM('Wallet'[Montant]),
+                'Wallet'[PROFILE] = "Commission Receivable",
+                LASTNONBLANK(
+                    FILTER(
+                        ALL('Table_Calendrier'),
+                        'Table_Calendrier'[Date] < _DateAujourdhui
+                    ),
+                    CALCULATE(SUM('Wallet'[Montant]))
+                )
+            )
+
+        VAR _Taux =
+            CALCULATE(
+                MAX('Table_Change'[Taux]),
+                TOPN(
+                    1,
+                    FILTER(
+                        ALL('Table_Change'),
+                        'Table_Change'[Devise] = _DeviseActuelle &&
+                        'Table_Change'[Type] = _TypeChoisi &&
+                        'Table_Change'[Date_Application] <= _DateAujourdhui
+                    ),
+                    'Table_Change'[Date_Application], DESC
+                )
+            )
+
+        VAR _TauxFinal =
+            IF(_DeviseActuelle = "GNF", 1, _Taux)
+
+        RETURN
+            IF(
+                ISBLANK(_MntAujourdhui) && ISBLANK(_MntHier),
+                BLANK(),
+                (_MntAujourdhui - _MntHier) * _TauxFinal
+            )
+    )
+
+RETURN
+    IF(ISBLANK(_ResultatTotal), BLANK(), ABS(_ResultatTotal))
+
+
