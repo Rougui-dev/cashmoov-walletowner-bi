@@ -21,15 +21,15 @@ The resulting Power BI dashboard serves as a critical operational and decision-m
 
 ###  Home Page (Accueil)
 *This landing page offers a high-level navigation interface and an executive overview of the global financial health.*
-![Home View](assets/screenshot_home.JPG)
+![Home View](screenshot_home.JPG)
 
 ###  Balance Analysis (Solde)
 *This view focuses on ledger balancing, monitoring real-time balances, tracking financial flows, and detecting operational anomalies.*
-![Balance View](assets/screenshot_balance.JPG)
+![Balance View](screenshot_balance.JPG)
 
 ###  Revenue Performance (Revenu)
 *Dedicated to income tracking, analyzing revenue streams, and evaluating top-performing wallet owner segments.*
-![Revenue View](assets/screenshot_revenue.JPG)
+![Revenue View](screenshot_revenue.JPG)
 
 ##  Project Impact
 1.  **Automation:** Replaced manual Excel-based tracking with an automated Power Query and Power BI workflow, reducing reporting time significantly.
